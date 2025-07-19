@@ -16,15 +16,26 @@ import {
   TreePine,
   Leaf,
   Flower,
-  Loader2
+  Loader2,
+  Grape,
+  Cherry,
+  Zap,
+  Waves,
+  Sparkles,
+  Circle,
+  Triangle,
+  Square,
+  Hexagon
 } from 'lucide-react'
 
 interface PlantPart {
   id: string
-  type: 'trunk' | 'branch' | 'leaf' | 'flower' | 'root'
+  type: 'trunk' | 'branch' | 'leaf' | 'flower' | 'root' | 'vine' | 'fruit' | 'seed' | 'thorn' | 'moss' | 'fungus' | 'bud' | 'stem' | 'bulb' | 'tendril'
   color: string
   size: number
   position: { x: number; y: number }
+  growthRate?: 'slow' | 'normal' | 'fast' | 'rapid'
+  special?: 'climbing' | 'spreading' | 'drooping' | 'upright' | 'spiral'
 }
 
 interface PlantData {
@@ -47,6 +58,8 @@ function App() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [selectedPartType, setSelectedPartType] = useState<PlantPart['type']>('trunk')
   const [selectedColor, setSelectedColor] = useState('#22c55e')
+  const [selectedGrowthRate, setSelectedGrowthRate] = useState<PlantPart['growthRate']>('normal')
+  const [selectedSpecial, setSelectedSpecial] = useState<PlantPart['special']>('upright')
   const [environment, setEnvironment] = useState({
     sunlight: 50,
     water: 50,
@@ -68,7 +81,7 @@ function App() {
     setIsGenerating(true)
     try {
       const { object } = await blink.ai.generateObject({
-        prompt: `Generate a detailed plant or tree based on this description: "${plantDescription}". Create a realistic plant with various parts like trunk, branches, leaves, flowers, and roots. Include colors, sizes, and positioning.`,
+        prompt: `Generate a detailed plant or tree based on this description: "${plantDescription}". Create a realistic plant with various parts including: trunk, branches, leaves, flowers, roots, vines (for climbing plants), fruits, seeds, thorns, moss, fungus, buds, stems, bulbs, and tendrils. Consider growth rates (slow, normal, fast, rapid) and special behaviors (climbing, spreading, drooping, upright, spiral). Include appropriate colors, sizes, and positioning for each part.`,
         schema: {
           type: 'object',
           properties: {
@@ -83,7 +96,7 @@ function App() {
                     type: 'object',
                     properties: {
                       id: { type: 'string' },
-                      type: { type: 'string', enum: ['trunk', 'branch', 'leaf', 'flower', 'root'] },
+                      type: { type: 'string', enum: ['trunk', 'branch', 'leaf', 'flower', 'root', 'vine', 'fruit', 'seed', 'thorn', 'moss', 'fungus', 'bud', 'stem', 'bulb', 'tendril'] },
                       color: { type: 'string' },
                       size: { type: 'number' },
                       position: {
@@ -92,7 +105,9 @@ function App() {
                           x: { type: 'number' },
                           y: { type: 'number' }
                         }
-                      }
+                      },
+                      growthRate: { type: 'string', enum: ['slow', 'normal', 'fast', 'rapid'] },
+                      special: { type: 'string', enum: ['climbing', 'spreading', 'drooping', 'upright', 'spiral'] }
                     }
                   }
                 }
@@ -139,7 +154,9 @@ function App() {
       position: { 
         x: Math.random() * 200 + 100, 
         y: Math.random() * 200 + 100 
-      }
+      },
+      growthRate: selectedGrowthRate,
+      special: selectedSpecial
     }
 
     setCurrentPlant(prev => prev ? {
@@ -153,10 +170,37 @@ function App() {
     
     setCurrentPlant(prev => prev ? {
       ...prev,
-      parts: prev.parts.map(part => ({
-        ...part,
-        size: Math.min(part.size * 1.2, 50)
-      }))
+      parts: prev.parts.map(part => {
+        let growthMultiplier = 1.2
+        
+        // Adjust growth based on growth rate
+        switch (part.growthRate) {
+          case 'slow':
+            growthMultiplier = 1.1
+            break
+          case 'normal':
+            growthMultiplier = 1.2
+            break
+          case 'fast':
+            growthMultiplier = 1.4
+            break
+          case 'rapid':
+            growthMultiplier = 1.8
+            break
+          default:
+            growthMultiplier = 1.2
+        }
+        
+        // Vines and tendrils grow differently
+        if (part.type === 'vine' || part.type === 'tendril') {
+          growthMultiplier *= 1.3
+        }
+        
+        return {
+          ...part,
+          size: Math.min(part.size * growthMultiplier, 80)
+        }
+      })
     } : null)
   }
 
@@ -168,20 +212,49 @@ function App() {
         case 'leaf': return <Leaf className="w-full h-full" style={{ color: part.color }} />
         case 'flower': return <Flower className="w-full h-full" style={{ color: part.color }} />
         case 'root': return <TreePine className="w-full h-full rotate-180" style={{ color: part.color }} />
+        case 'vine': return <Waves className="w-full h-full" style={{ color: part.color }} />
+        case 'fruit': return <Cherry className="w-full h-full" style={{ color: part.color }} />
+        case 'seed': return <Circle className="w-full h-full" style={{ color: part.color }} />
+        case 'thorn': return <Triangle className="w-full h-full" style={{ color: part.color }} />
+        case 'moss': return <Sparkles className="w-full h-full" style={{ color: part.color }} />
+        case 'fungus': return <Hexagon className="w-full h-full" style={{ color: part.color }} />
+        case 'bud': return <Circle className="w-full h-full" style={{ color: part.color }} />
+        case 'stem': return <TreePine className="w-full h-full rotate-45" style={{ color: part.color }} />
+        case 'bulb': return <Square className="w-full h-full" style={{ color: part.color }} />
+        case 'tendril': return <Waves className="w-full h-full rotate-45" style={{ color: part.color }} />
         default: return <Sprout className="w-full h-full" style={{ color: part.color }} />
       }
+    }
+
+    const getSpecialClasses = () => {
+      let classes = "absolute transition-all duration-300"
+      
+      if (part.growthRate === 'fast' || part.growthRate === 'rapid') {
+        classes += " animate-pulse"
+      }
+      
+      if (part.special === 'climbing') {
+        classes += " transform rotate-12"
+      } else if (part.special === 'drooping') {
+        classes += " transform rotate-180"
+      } else if (part.special === 'spiral') {
+        classes += " transform rotate-45"
+      }
+      
+      return classes
     }
 
     return (
       <div
         key={part.id}
-        className="absolute transition-all duration-300"
+        className={getSpecialClasses()}
         style={{
           left: part.position.x,
           top: part.position.y,
           width: part.size,
           height: part.size
         }}
+        title={`${part.type}${part.growthRate ? ` (${part.growthRate} growth)` : ''}${part.special ? ` - ${part.special}` : ''}`}
       >
         {getIcon()}
       </div>
@@ -301,11 +374,21 @@ function App() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="trunk">Trunk</SelectItem>
-                        <SelectItem value="branch">Branch</SelectItem>
-                        <SelectItem value="leaf">Leaf</SelectItem>
-                        <SelectItem value="flower">Flower</SelectItem>
-                        <SelectItem value="root">Root</SelectItem>
+                        <SelectItem value="trunk">🌳 Trunk</SelectItem>
+                        <SelectItem value="branch">🌿 Branch</SelectItem>
+                        <SelectItem value="leaf">🍃 Leaf</SelectItem>
+                        <SelectItem value="flower">🌸 Flower</SelectItem>
+                        <SelectItem value="root">🌱 Root</SelectItem>
+                        <SelectItem value="vine">🍇 Vine (Climbing)</SelectItem>
+                        <SelectItem value="fruit">🍒 Fruit</SelectItem>
+                        <SelectItem value="seed">🌰 Seed</SelectItem>
+                        <SelectItem value="thorn">🌵 Thorn</SelectItem>
+                        <SelectItem value="moss">✨ Moss</SelectItem>
+                        <SelectItem value="fungus">🍄 Fungus</SelectItem>
+                        <SelectItem value="bud">🌹 Bud</SelectItem>
+                        <SelectItem value="stem">🌾 Stem</SelectItem>
+                        <SelectItem value="bulb">🧅 Bulb</SelectItem>
+                        <SelectItem value="tendril">🌿 Tendril</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -322,6 +405,37 @@ function App() {
                         />
                       ))}
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">Growth Rate</label>
+                    <Select value={selectedGrowthRate} onValueChange={(value: PlantPart['growthRate']) => setSelectedGrowthRate(value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="slow">🐌 Slow Growth</SelectItem>
+                        <SelectItem value="normal">🌱 Normal Growth</SelectItem>
+                        <SelectItem value="fast">⚡ Fast Growth</SelectItem>
+                        <SelectItem value="rapid">🚀 Rapid Growth</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">Special Behavior</label>
+                    <Select value={selectedSpecial} onValueChange={(value: PlantPart['special']) => setSelectedSpecial(value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="upright">⬆️ Upright</SelectItem>
+                        <SelectItem value="climbing">🧗 Climbing</SelectItem>
+                        <SelectItem value="spreading">↔️ Spreading</SelectItem>
+                        <SelectItem value="drooping">⬇️ Drooping</SelectItem>
+                        <SelectItem value="spiral">🌀 Spiral</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <Button onClick={addPlantPart} className="w-full">
