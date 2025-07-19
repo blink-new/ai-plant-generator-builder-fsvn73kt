@@ -60,6 +60,7 @@ function App() {
   const [selectedColor, setSelectedColor] = useState('#22c55e')
   const [selectedGrowthRate, setSelectedGrowthRate] = useState<PlantPart['growthRate']>('normal')
   const [selectedSpecial, setSelectedSpecial] = useState<PlantPart['special']>('upright')
+  const [isPlacementMode, setIsPlacementMode] = useState(false)
   const [environment, setEnvironment] = useState({
     sunlight: 50,
     water: 50,
@@ -133,7 +134,7 @@ function App() {
     }
   }
 
-  const addPlantPart = () => {
+  const addPlantPart = (position?: { x: number; y: number }) => {
     if (!currentPlant) {
       // Create a new plant if none exists
       const newPlant: PlantData = {
@@ -151,7 +152,7 @@ function App() {
       type: selectedPartType,
       color: selectedColor,
       size: 20,
-      position: { 
+      position: position || { 
         x: Math.random() * 200 + 100, 
         y: Math.random() * 200 + 100 
       },
@@ -163,6 +164,25 @@ function App() {
       ...prev,
       parts: [...prev.parts, newPart]
     } : null)
+  }
+
+  const handlePlantViewerClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isPlacementMode) return
+    
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    
+    addPlantPart({ x, y })
+    setIsPlacementMode(false)
+  }
+
+  const enterPlacementMode = () => {
+    setIsPlacementMode(true)
+  }
+
+  const cancelPlacementMode = () => {
+    setIsPlacementMode(false)
   }
 
   const simulateGrowth = () => {
@@ -291,7 +311,7 @@ function App() {
       </div>
 
       {/* Main Layout */}
-      <div className="flex h-[calc(100vh-80px)] gap-4 p-4">
+      <div className="flex h-[calc(100vh-200px)] gap-4 p-4">
         {/* Left Sidebar */}
         <div className="w-16 flex flex-col gap-4">
           <Button
@@ -338,8 +358,30 @@ function App() {
               {currentPlant && (
                 <p className="text-sm text-gray-600">{currentPlant.name}</p>
               )}
+              {isPlacementMode && (
+                <div className="mt-2 p-2 bg-primary/10 rounded-md border border-primary/20">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-primary font-medium">
+                      🎯 Click anywhere to place your {selectedPartType}
+                    </p>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      onClick={cancelPlacementMode}
+                      className="h-6 px-2 text-xs"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="relative w-full h-full bg-gradient-to-b from-blue-100 to-green-100">
+            <div 
+              className={`relative w-full h-full bg-gradient-to-b from-blue-100 to-green-100 ${
+                isPlacementMode ? 'cursor-crosshair' : 'cursor-default'
+              }`}
+              onClick={handlePlantViewerClick}
+            >
               {currentPlant ? (
                 currentPlant.parts.map(renderPlantPart)
               ) : (
@@ -438,10 +480,15 @@ function App() {
                     </Select>
                   </div>
 
-                  <Button onClick={addPlantPart} className="w-full">
-                    <Palette className="w-4 h-4 mr-2" />
-                    Add Part
-                  </Button>
+                  <div className="space-y-2">
+                    <Button onClick={enterPlacementMode} className="w-full" variant={isPlacementMode ? "default" : "outline"}>
+                      <Palette className="w-4 h-4 mr-2" />
+                      {isPlacementMode ? "Click to Place" : "Place with Mouse"}
+                    </Button>
+                    <Button onClick={() => addPlantPart()} className="w-full" variant="outline">
+                      Add Random Position
+                    </Button>
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="environment" className="space-y-4">
@@ -482,32 +529,44 @@ function App() {
         </div>
       </div>
 
-      {/* Bottom AI Generation */}
-      <div className="p-4 bg-card border-t">
-        <div className="flex gap-4 items-end">
-          <div className="flex-1">
-            <Textarea
-              placeholder="Insert Plant Description!"
-              value={plantDescription}
-              onChange={(e) => setPlantDescription(e.target.value)}
-              className="min-h-[80px] bg-primary/10 border-primary/20 text-foreground placeholder:text-muted-foreground"
-            />
+      {/* AI Generation Section */}
+      <div className="p-4 border-t bg-gradient-to-r from-primary/5 to-accent/5">
+        <Card className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-5 h-5 text-primary" />
+            <h3 className="text-lg font-semibold text-gray-800">AI Plant Generator</h3>
           </div>
-          <Button 
-            onClick={generatePlantWithAI}
-            disabled={isGenerating || !plantDescription.trim()}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6"
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              'Generate Plant'
-            )}
-          </Button>
-        </div>
+          <div className="flex gap-4 items-end">
+            <div className="flex-1">
+              <label className="text-sm font-medium text-gray-700 mb-2 block">
+                Describe your plant or tree
+              </label>
+              <Textarea
+                placeholder="e.g., A tall oak tree with spreading branches and autumn leaves, or a climbing ivy vine with small flowers..."
+                value={plantDescription}
+                onChange={(e) => setPlantDescription(e.target.value)}
+                className="min-h-[80px] bg-white border-primary/20 text-foreground placeholder:text-muted-foreground"
+              />
+            </div>
+            <Button 
+              onClick={generatePlantWithAI}
+              disabled={isGenerating || !plantDescription.trim()}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Generate Plant
+                </>
+              )}
+            </Button>
+          </div>
+        </Card>
       </div>
     </div>
   )
